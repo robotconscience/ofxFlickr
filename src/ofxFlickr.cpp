@@ -100,6 +100,134 @@ namespace ofxFlickr {
         }
     }
     
+    //--------------------------------------------------------------
+    string getSortString( Sort sort ){
+        switch (sort) {
+            case FLICKR_SORT_DATE_POSTED_ASC:
+                return "date-posted-asc";
+                break;
+            case FLICKR_SORT_DATE_POSTED_DESC:
+                return "date-posted-desc";
+                break;
+            case FLICKR_SORT_DATE_TAKEN_DESC:
+                return "date-taken-desc";
+                break;
+            case FLICKR_SORT_DATE_TAKEN_ASC:
+                return "date-taken-asc";
+                break;
+            case FLICKR_SORT_INTERESTINGNESS_DESC:
+                return "interestingness-desc";
+                break;
+            case FLICKR_SORT_INTERESTINGNESS_ASC:
+                return "interestingness-asc";
+                break;
+            case FLICKR_SORT_RELEVANCE:
+                return "relevance";
+                break;
+        }
+    }
+    
+    //--------------------------------------------------------------
+    string getPrivacyString( PrivacyFilter filter ){
+        switch (filter) {
+            case FLICKR_PRIVACY_PUBLIC:
+                return "1";
+                break;
+            case FLICKR_PRIVACY_FRIENDS:
+                return "2";
+                break;
+            case FLICKR_PRIVACY_FAMILY:
+                return "3";
+                break;
+            case FLICKR_PRIVACY_FRIENDS_FAMILY:
+                return "4";
+                break;
+            case FLICKR_PRIVACY_PRIVATE:
+                return "5";
+                break;
+        }
+        
+    }
+    
+#pragma mark ofxFlickr::Query
+    
+    //--------------------------------------------------------------
+    Query::Query():
+    tagMode(FLICKR_SEARCH_ANY),
+    sort(FLICKR_SORT_DATE_POSTED_DESC),
+    privacy(FLICKR_PRIVACY_PUBLIC),
+    per_page(100),
+    page(1),
+    bNeedsAuth(false)
+    {
+        text = user_id = min_upload_date = max_upload_date = min_taken_date = max_taken_date = license = boundingBox ="";
+        license = boundingBox= accuracy = safe_search = content_type = machine_tags = machine_tag_mode = group_id = contacts = woe_id = place_id = media = has_geo = geo_context = lat = lon = radius = radius_units = is_commons = in_gallery = is_getty = extras = "";
+        api_key = "";
+    }
+    
+    //--------------------------------------------------------------
+    map<string,string> Query::getQueryParameters(){
+        map<string,string> params;
+        params["api_key"]   = api_key;
+        if ( text != "" )       params["text"]          = text;
+        if ( user_id != "" )    params["user_id"]       = text;
+        
+        params["sort"]              = getSortString( sort );
+        params["privacy_filter"]    = getPrivacyString( privacy );
+        params["per_page"]          = ofToString( per_page );
+        params["page"]              = ofToString( page );
+        
+        if ( min_upload_date != "" )    params["min_upload_date"]       = min_upload_date;
+        if ( max_upload_date != "" )    params["max_upload_date"]       = max_upload_date;
+        if ( min_taken_date != "" )     params["min_taken_date"]        = min_taken_date;
+        if ( max_taken_date != "" )     params["max_taken_date"]        = max_taken_date;
+        if ( license != "" )            params["license"]               = license;
+        if ( boundingBox != "" )        params["boundingBox"]           = boundingBox;
+        if ( accuracy != "" )           params["accuracy"]              = accuracy;
+        if ( safe_search != "" )        params["safe_search"]           = safe_search;
+        if ( content_type != "" )       params["content_type"]          = content_type;
+        if ( machine_tags != "" )       params["machine_tags"]          = machine_tags;
+        if ( machine_tag_mode != "" )   params["machine_tag_mode"]      = machine_tag_mode;
+        if ( group_id != "" )           params["group_id"]              = group_id;
+        if ( contacts != "" )           params["contacts"]              = contacts;
+        if ( woe_id != "" )             params["woe_id"]                = woe_id;
+        if ( place_id != "" )           params["place_id"]              = place_id;
+        if ( media != "" )              params["media"]                 = media;
+        if ( has_geo != "" )            params["has_geo"]               = has_geo;
+        if ( lat != "" )                params["lat"]                   = lat;
+        if ( lon != "" )                params["lon"]                   = lon;
+        if ( radius != "" )             params["radius"]                = radius;
+        if ( radius_units != "" )       params["radius_units"]          = radius_units;
+        if ( is_commons != "" )         params["is_commons"]            = is_commons;
+        if ( in_gallery != "" )         params["in_gallery"]            = in_gallery;
+        if ( is_getty != "" )           params["is_getty"]              = is_getty;
+        if ( extras != "" )             params["extras"]                = extras;
+        
+        return params;
+    }
+    
+    //--------------------------------------------------------------
+    bool Query::requiresAuthentication(){
+        return privacy != FLICKR_PRIVACY_PUBLIC || user_id == "me";
+    }
+    
+    //--------------------------------------------------------------
+    void Query::addTag( string tag ){
+        tags.push_back(tag);
+    }
+    
+    //--------------------------------------------------------------
+    string Query::getTagString(){
+        string ret;
+        for (int i=0; i<tags.size(); i++){
+            ret += tags[i];
+            if ( i + i < tags.size()){
+                ret +=",";
+            }
+        }
+        return ret;
+    }
+    
 #pragma mark ofxFlickr::API
     
     //--------------------------------------------------------------
@@ -417,6 +545,54 @@ namespace ofxFlickr {
         }; xml.popTag();
         
         return photoid;
+    }
+    
+    //-------------------------------------------------------------
+    vector<Media> API::search( string text ){
+        Query q; q.text = text; q.api_key = api_key;
+        return search(q);
+    }
+    
+    //-------------------------------------------------------------
+    vector<Media> API::search( Query query ){
+        vector<Media> toReturn;
+        if ( query.api_key == "" ) query.api_key = api_key;
+        
+        if ( query.requiresAuthentication() && !bAuthenticated ){
+            ofLogWarning("You must authenticate to use some of these parameters!");
+            return toReturn;
+        }
+        
+        string result = makeAPICall("flickr.photos.search", query.getQueryParameters(), FLICKR_XML, query.requiresAuthentication());
+        ofxXmlSettings xml; xml.loadFromBuffer(result);
+        xml.pushTag("rsp");{
+            xml.pushTag("photos"); {
+                
+                for (int i=0; i<xml.getNumTags("photo"); i++){
+                    Media med;
+                    
+                    med.id = xml.getAttribute("photo", "id", "", i);
+                    med.farm = xml.getAttribute("photo", "farm", "", i);
+                    med.secret = xml.getAttribute("photo", "secret", "", i);
+                    med.server = xml.getAttribute("photo", "server", "", i);
+                    med.originalsecret = xml.getAttribute("photo", "originalsecret", "", i);
+                    med.originalformat = xml.getAttribute("photo", "originalformat", "", i);
+                    
+                    string t = xml.getAttribute("photo", "media", "", i);
+                    if ( t == "photo"){
+                        med.type = FLICKR_PHOTO;
+                    } else if ( t == "video"){
+                        med.type = FLICKR_VIDEO;
+                    } else {
+                        med.type = FLICKR_UNKNOWN;
+                    }
+                    
+                    toReturn.push_back(med);
+                }
+                
+            } xml.popTag();
+        } xml.popTag();
+        return toReturn;
     }
     
     //-------------------------------------------------------------

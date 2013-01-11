@@ -56,6 +56,8 @@ namespace ofxFlickr {
         FLICKR_SIZE_B,
     };
     
+    static string getSizeURLParam( Size size );
+    
     enum MediaType {
         FLICKR_PHOTO = 0,
         FLICKR_VIDEO,
@@ -102,13 +104,91 @@ namespace ofxFlickr {
         
         MediaType getType();
         
-    private:
-        
         // usually photo
         MediaType type;
+        
     };
     
-    static string getSizeURLParam( Size size );
+    enum SearchMode {
+        FLICKR_SEARCH_ANY = 0, // default
+        FLICKR_SEARCH_ALL
+    };
+    
+    enum Sort {
+        FLICKR_SORT_DATE_POSTED_DESC = 0, // default
+        FLICKR_SORT_DATE_POSTED_ASC,
+        FLICKR_SORT_DATE_TAKEN_DESC,
+        FLICKR_SORT_DATE_TAKEN_ASC,
+        FLICKR_SORT_INTERESTINGNESS_DESC,
+        FLICKR_SORT_INTERESTINGNESS_ASC,
+        FLICKR_SORT_RELEVANCE
+    };
+    
+    static string getSortString( Sort sort );
+    
+    enum PrivacyFilter {
+        FLICKR_PRIVACY_PUBLIC = 0,
+        FLICKR_PRIVACY_FRIENDS,
+        FLICKR_PRIVACY_FAMILY,
+        FLICKR_PRIVACY_FRIENDS_FAMILY,
+        FLICKR_PRIVACY_PRIVATE
+    };
+    
+    static string getPrivacyString( PrivacyFilter filter );
+    
+    // see http://www.flickr.com/services/api/flickr.photos.search.html
+    
+    class Query {
+    public:
+        
+        Query();
+        
+        bool requiresAuthentication();
+        map<string,string> getQueryParameters();
+        
+        void addTag( string tag );
+        string getTagString();
+        
+        // required
+        string api_key;
+        
+        // optional
+        string          text;
+        string          user_id;
+        Sort            sort;
+        SearchMode      tagMode;
+        PrivacyFilter   privacy;
+        int             per_page, page;
+        
+        // to be implemented in better way (see API docs for now to use correct values)
+        string min_upload_date, max_upload_date, min_taken_date, max_taken_date;
+        string license;
+        string boundingBox;
+        string accuracy;
+        string safe_search;
+        string content_type;
+        string machine_tags;
+        string machine_tag_mode;
+        string group_id;
+        string contacts;
+        string woe_id;
+        string place_id;
+        string media;
+        string has_geo;
+        string geo_context;
+        string lat;
+        string lon;
+        string radius;
+        string radius_units;
+        string is_commons;
+        string in_gallery;
+        string is_getty;
+        string extras;
+        
+    private:
+        bool bNeedsAuth;
+        vector<string> tags;
+    };
     
     class API {
     public:
@@ -143,6 +223,18 @@ namespace ofxFlickr {
          * @param {std::string} id ID of photo you'd like to load into a ofxFlickr::Media object
          */
         Media & getMediaById( string id );
+        
+        /**
+         * Search photos!
+         * @param {std::string} text Text to search
+         */
+        vector<Media> search( string text );
+        
+        /**
+         * Search photos!
+         * @param {ofxFlickr::Query} query
+         */
+        vector<Media> search( Query query );
         
     private:
         bool                bAuthenticated;
