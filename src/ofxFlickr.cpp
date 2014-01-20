@@ -9,9 +9,9 @@
 #include "ofxFlickr.h"
 
 namespace ofxFlickr {
-    
+
 #pragma mark ofxFlickr::Media
-    
+
     Media::Media(){
         id = "";
         farm = "";
@@ -22,7 +22,7 @@ namespace ofxFlickr {
         type = FLICKR_UNKNOWN;
         rotation = 0;
     }
-    
+
     //--------------------------------------------------------------
     void Media::loadFromXML( string XML ){
         cout << XML << endl;
@@ -35,7 +35,7 @@ namespace ofxFlickr {
             server = xml.getAttribute("photo", "server", "");
             originalsecret = xml.getAttribute("photo", "originalsecret", "");
             originalformat = xml.getAttribute("photo", "originalformat", "");
-            
+
             string t = xml.getAttribute("photo", "media", "");
             if ( t == "photo"){
                 type = FLICKR_PHOTO;
@@ -45,11 +45,11 @@ namespace ofxFlickr {
                 type = FLICKR_UNKNOWN;
             }
         } xml.popTag();
-        
+
         cout << getURL() << endl;
         // to-do: other stuff
     }
-    
+
     //--------------------------------------------------------------
     string Media::getURL( Size size ){
         if ( size == FLICKR_SIZE_DEFAULT ){
@@ -60,13 +60,13 @@ namespace ofxFlickr {
             return "http://farm" + farm +".staticflickr.com/" + server +"/" + id +"_" + secret +"_" + getSizeURLParam( size ) +".jpg";
         }
     }
-    
-    
+
+
     //--------------------------------------------------------------
     MediaType Media::getType(){
         return type;
     }
-    
+
     //--------------------------------------------------------------
     string getSizeURLParam( Size size ){
         switch (size) {
@@ -99,7 +99,7 @@ namespace ofxFlickr {
                 break;
         }
     }
-    
+
     //--------------------------------------------------------------
     string getSortString( Sort sort ){
         switch (sort) {
@@ -126,7 +126,7 @@ namespace ofxFlickr {
                 break;
         }
     }
-    
+
     //--------------------------------------------------------------
     string getPrivacyString( PrivacyFilter filter ){
         switch (filter) {
@@ -146,11 +146,11 @@ namespace ofxFlickr {
                 return "5";
                 break;
         }
-        
+
     }
-    
+
 #pragma mark ofxFlickr::Query
-    
+
     //--------------------------------------------------------------
     Query::Query():
     tagMode(FLICKR_SEARCH_ANY),
@@ -164,19 +164,19 @@ namespace ofxFlickr {
         license = boundingBox= accuracy = safe_search = content_type = machine_tags = machine_tag_mode = group_id = contacts = woe_id = place_id = media = has_geo = geo_context = lat = lon = radius = radius_units = is_commons = in_gallery = is_getty = extras = "";
         api_key = "";
     }
-    
+
     //--------------------------------------------------------------
     map<string,string> Query::getQueryParameters(){
         map<string,string> params;
         params["api_key"]   = api_key;
         if ( text != "" )       params["text"]          = text;
         if ( user_id != "" )    params["user_id"]       = text;
-        
+
         params["sort"]              = getSortString( sort );
         params["privacy_filter"]    = getPrivacyString( privacy );
         params["per_page"]          = ofToString( per_page );
         params["page"]              = ofToString( page );
-        
+
         if ( min_upload_date != "" )    params["min_upload_date"]       = min_upload_date;
         if ( max_upload_date != "" )    params["max_upload_date"]       = max_upload_date;
         if ( min_taken_date != "" )     params["min_taken_date"]        = min_taken_date;
@@ -202,20 +202,20 @@ namespace ofxFlickr {
         if ( in_gallery != "" )         params["in_gallery"]            = in_gallery;
         if ( is_getty != "" )           params["is_getty"]              = is_getty;
         if ( extras != "" )             params["extras"]                = extras;
-        
+
         return params;
     }
-    
+
     //--------------------------------------------------------------
     bool Query::requiresAuthentication(){
         return privacy != FLICKR_PRIVACY_PUBLIC || user_id == "me";
     }
-    
+
     //--------------------------------------------------------------
     void Query::addTag( string tag ){
         tags.push_back(tag);
     }
-    
+
     //--------------------------------------------------------------
     string Query::getTagString(){
         string ret;
@@ -227,26 +227,26 @@ namespace ofxFlickr {
         }
         return ret;
     }
-    
+
 #pragma mark ofxFlickr::API
-    
+
     //--------------------------------------------------------------
     API::API() :
     bAuthenticated(false),
     currentPerms(FLICKR_NONE)
     {
-        
+
     };
-    
+
     //--------------------------------------------------------------
     bool API::authenticate( string _api_key, string _api_secret, Permissions perms  ){
         api_key = _api_key;
         api_secret = _api_secret;
-        
+
         // try to load from xml
         ofxXmlSettings xml;
         bool bLoaded = xml.loadFile("flickr.xml");
-        
+
         if ( bLoaded ){
             xml.pushTag("settings");{
                 auth_token = xml.getValue("token", "");
@@ -255,7 +255,7 @@ namespace ofxFlickr {
                 }
             }; xml.popTag();
         }
-        
+
         // not loaded, definitely need to get one
         if ( !bLoaded ) {
             bAuthenticated = getAuthToken( perms );
@@ -267,41 +267,41 @@ namespace ofxFlickr {
                 bAuthenticated = true;
             }
         }
-        
+
         if ( bAuthenticated ) {
             currentPerms = perms;
         } else {
             currentPerms = FLICKR_NONE;
         }
-        
+
         return bAuthenticated;
     }
-    
+
     //--------------------------------------------------------------
     bool API::checkAuthToken( string api_key, string auth_token, Permissions perms ){
         // build call
         map<string,string> args;
         args["api_key"]     = api_key;
         args["auth_token"]  = auth_token;
-        
+
         // get frob
         string result = makeAPICall( "flickr.auth.checkToken", args, FLICKR_XML, true );
         ofxXmlSettings xml;
         xml.loadFromBuffer(result);
         string status = xml.getAttribute("rsp", "stat", "");
-        
+
         bool bNeedNewToken  = true;
         string perm         = "";
-        
+
         if (status == "ok"){
             xml.pushTag("rsp");{
                 xml.pushTag("auth");{
                     perm = xml.getValue("perms", "");
                 }; xml.popTag();
             }; xml.popTag();
-            
+
             cout << perm << endl;
-            
+
             // check if we have permissions
             switch (perms) {
                 case FLICKR_WRITE:
@@ -319,29 +319,29 @@ namespace ofxFlickr {
         }
         return !bNeedNewToken;
     }
-    
+
     //--------------------------------------------------------------
     bool API::getAuthToken( Permissions perms ){
         // build call
         map<string,string> args;
         args["api_key"] = api_key;
-        
+
         // get frob
         string result = makeAPICall( "flickr.auth.getFrob", args, FLICKR_XML, true );
-        
+
         ofxXmlSettings xml;
         xml.loadFromBuffer(result);
         xml.pushTag("rsp");{
             frob = xml.getValue("frob", "");
         }; xml.popTag();
-        
+
         // authenticate
-        
+
         // %a = API key, %b = perms, %c = frob, %d = api_sig
         string authURL = auth;
         ofStringReplace(authURL, "%a", api_key);
         string perm = "write";
-        
+
         switch (perms) {
             case FLICKR_WRITE:
                 perm = "write";
@@ -357,39 +357,40 @@ namespace ofxFlickr {
         toEncode["api_key"] = api_key;
         toEncode["perms"]   = perm;
         toEncode["frob"]    = frob;
-        
+
         ofStringReplace(authURL, "%b", perm);
         ofStringReplace(authURL, "%c", frob);
         ofStringReplace(authURL, "%d", apiSig(toEncode));
-        
+
         // this part is weird! ofLaunchBrowser has a tiny bug
 #ifdef TARGET_OSX
 		string commandStr = "open '"+authURL +"'";
 		system(commandStr.c_str());
 #else
+        cout << authURL;
         ofLaunchBrowser(authURL);
 #endif
         bool bValidToken = false;
         int  numSeconds  = 0;
         int  secondsWait = 2;
-        
+
         for( numSeconds; numSeconds<30; numSeconds+=secondsWait ){
             map<string,string> auth_args;
             auth_args["api_key"]    = api_key;
             auth_args["frob"]       = frob;
-            
+
             // get frob
             string auth_result = makeAPICall( "flickr.auth.getToken", auth_args, FLICKR_XML, true );
-            
+
             xml.loadFromBuffer(auth_result);
             xml.pushTag("rsp"); {
                 xml.pushTag("auth"); {
                     auth_token = xml.getValue("token", "");
                 } xml.popTag();
             } xml.popTag();
-            
+
             bValidToken = !( auth_token == "" );
-            
+
             if ( bValidToken ) break;
             numSeconds += secondsWait;
             ofSleepMillis(1000);
@@ -401,37 +402,37 @@ namespace ofxFlickr {
             ofLogError( "OAuth didn't succeed. Maybe you took too long?");
             return false;
         }
-        
+
         // save auth token to XML for safe keeping
-        
+
         ofxXmlSettings toSave;
         toSave.addTag("settings");
         toSave.pushTag("settings");{
             toSave.addValue("token", auth_token);
         }; toSave.popTag();
         toSave.saveFile("flickr.xml");
-        
+
         return true;
     }
-    
+
     //--------------------------------------------------------------
     string API::apiSig( map<string, string> params ){
         string toEncode = api_secret;
-        
+
         // concatenate errbody
         map<string,string>::iterator it = params.begin();
         for ( it; it != params.end(); ++it ){
             toEncode += it->first + it->second;
         }
-        
+
         return md5( toEncode );
     }
-    
+
     //-------------------------------------------------------------
     string API::makeAPICall( string method, map<string,string> args, Format format, bool bSigned  ){
         string path     = buildAPICall( method, args, format, bSigned );
         string result   = "";
-        
+
         try
         {
             // Get REST style xml as string from flickr
@@ -444,42 +445,42 @@ namespace ofxFlickr {
         }
         return result;
     }
-    
+
     //-------------------------------------------------------------
     string API::buildAPICall( string method, map<string,string> args, Format format, bool bSigned ){
         string call = "/services/rest/?method=" + method;
-        
+
         switch ( format ) {
             case FLICKR_XML:
                 args["format"]          = "rest";
                 break;
-                
+
             case FLICKR_JSON:
                 args["format"]          = "json";
                 args["nojsoncallback"]  = "1";
                 break;
-                
+
             case FLICKR_JSONP:
                 args["format"]          = "json";
                 break;
         }
-        
+
         map<string,string>::iterator it = args.begin();
         for ( it; it != args.end(); ++it ){
             call += "&" + it->first + "=" + it->second;
         }
-        
+
         if ( bSigned ){
             args["method"] = method;
             call += "&api_sig=" + apiSig( args );
         }
-        
+
         return call;
     }
-    
+
     //-------------------------------------------------------------
     string API::upload( string image ){
-        
+
         if ( !bAuthenticated ){
             ofLogWarning( "Not authenticated! Please call authenticate() with proper api key and secret" );
             return "";
@@ -487,23 +488,23 @@ namespace ofxFlickr {
             ofLogWarning( "You do not have proper permissions to upload! Please call authenticate() with permissions of ofxFlickr::FLICKR_WRITE" );
             return "";
         }
-        
+
         map<string,string> args;
         args["api_key"] = api_key;
         args["auth_token"] = auth_token;
-        
+
         string result;
-        
+
         FilePartSource * fps = new FilePartSource(image, "image/jpeg");
-        
+
         try
         {
-            
+
             // prepare session
             HTTPClientSession session( api_base );
             HTTPRequest req(HTTPRequest::HTTP_POST, "/services/upload/", HTTPMessage::HTTP_1_0);
             req.setContentType("multipart/form-data");
-            
+
             // setup form
             HTMLForm form;
             form.set("api_key", api_key);
@@ -512,22 +513,22 @@ namespace ofxFlickr {
             form.setEncoding(HTMLForm::ENCODING_MULTIPART);
             form.addPart("photo", fps);
             form.prepareSubmit(req);
-            
+
             std::ostringstream oszMessage;
             form.write(oszMessage);
             std::string szMessage = oszMessage.str();
-            
+
             req.setContentLength((int) szMessage.length() );
-            
+
             //session.setKeepAlive(true);
-            
+
             // send form
             ostream & out = session.sendRequest(req) << szMessage;
-            
+
             // get response
             HTTPResponse res;
             cout << res.getStatus() << " " << res.getReason() << endl;
-            
+
             // print response
             istream &is = session.receiveResponse(res);
             StreamCopier::copyToString(is, result);
@@ -536,50 +537,50 @@ namespace ofxFlickr {
         {
             cerr << "error? " + ex.displayText() <<endl;
         }
-        
-        
+
+
         string photoid;
-        
+
         ofxXmlSettings xml;
         xml.loadFromBuffer(result);
         xml.pushTag("rsp");{
             photoid = xml.getValue("photoid", "");
         }; xml.popTag();
-        
+
         return photoid;
     }
-    
+
     //-------------------------------------------------------------
     vector<Media> API::search( string text ){
         Query q; q.text = text; q.api_key = api_key;
         return search(q);
     }
-    
+
     //-------------------------------------------------------------
     vector<Media> API::search( Query query ){
         vector<Media> toReturn;
         if ( query.api_key == "" ) query.api_key = api_key;
-        
+
         if ( query.requiresAuthentication() && !bAuthenticated ){
             ofLogWarning("You must authenticate to use some of these parameters!");
             return toReturn;
         }
-        
+
         string result = makeAPICall("flickr.photos.search", query.getQueryParameters(), FLICKR_XML, query.requiresAuthentication());
         ofxXmlSettings xml; xml.loadFromBuffer(result);
         xml.pushTag("rsp");{
             xml.pushTag("photos"); {
-                
+
                 for (int i=0; i<xml.getNumTags("photo"); i++){
                     Media med;
-                    
+
                     med.id = xml.getAttribute("photo", "id", "", i);
                     med.farm = xml.getAttribute("photo", "farm", "", i);
                     med.secret = xml.getAttribute("photo", "secret", "", i);
                     med.server = xml.getAttribute("photo", "server", "", i);
                     med.originalsecret = xml.getAttribute("photo", "originalsecret", "", i);
                     med.originalformat = xml.getAttribute("photo", "originalformat", "", i);
-                    
+
                     string t = xml.getAttribute("photo", "media", "", i);
                     if ( t == "photo"){
                         med.type = FLICKR_PHOTO;
@@ -588,15 +589,15 @@ namespace ofxFlickr {
                     } else {
                         med.type = FLICKR_UNKNOWN;
                     }
-                    
+
                     toReturn.push_back(med);
                 }
-                
+
             } xml.popTag();
         } xml.popTag();
         return toReturn;
     }
-    
+
     //-------------------------------------------------------------
     Media & API::getMediaById( string id ){
         if ( loadedMedia.count(id) < 1 ){
@@ -604,7 +605,7 @@ namespace ofxFlickr {
             map<string,string> args;
             args["api_key"]     = api_key;
             args["photo_id"]    = id;
-            
+
             // get frob
             string result = makeAPICall(  "flickr.photos.getInfo", args, FLICKR_XML );
             loadedMedia[id] = Media();
