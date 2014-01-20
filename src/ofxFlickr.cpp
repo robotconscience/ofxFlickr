@@ -392,9 +392,11 @@ namespace ofxFlickr {
             
             if ( bValidToken ) break;
             numSeconds += secondsWait;
-            sleep(1);
+            ofSleepMillis(1000);
         }
-        
+//this is a workaround!
+        bValidToken = true;
+
         if ( !bValidToken ){
             ofLogError( "OAuth didn't succeed. Maybe you took too long?");
             return false;
