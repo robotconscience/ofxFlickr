@@ -19,10 +19,13 @@ class testApp : public ofBaseApp{
 		void windowResized(int w, int h);
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
-
+    
     
         ofxFlickr::API flickrAPI;
         ofxFlickr::Media    lastUploaded;
+    
+        void onFlickrEvent ( ofxFlickr::APIEvent & evt );
+    
         ofImage             latestImage;
         string              toLoad;
 };

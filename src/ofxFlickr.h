@@ -190,10 +190,52 @@ namespace ofxFlickr {
         vector<string> tags;
     };
     
-    class API {
+    class APIEvent : public ofEventArgs {
+    public:
+        
+        string resultString;
+        vector<Media> results;
+        
+        static ofEvent <APIEvent> events;
+    };
+    
+    // should be updated as more calls added to main API class!
+    enum CallType {
+        FLICKR_SEARCH = 0,
+        FLICKR_UPLOAD,
+        FLICKR_GETMEDIA
+    };
+    
+    // small wrapper for thread queue
+    class APICall {
+    public:
+        
+        CallType type;
+        string method;
+        map<string,string> args;
+        Format format;
+        bool bSigned;
+        
+        APICall(){
+            format = FLICKR_XML;
+            bSigned = false;
+        }
+    };
+    
+    class API : protected ofThread {
     public:
         
         API();
+        
+        /**
+         * Start thread
+         */
+        void start();
+        
+        /**
+         * Stop thread
+         */
+        void stop();
         
         /**
          * Authenticate with Flickr. Will open a browser asking you to allow access to your account.
@@ -219,6 +261,12 @@ namespace ofxFlickr {
         string  upload( string image );
         
         /**
+         * (Threaded) Upload an image from disk
+         * Via ofEvent will return id of uploaded image. Use getMediaById to get ofxFlickr::Media, which includes the URL, etc.
+         */
+        void  uploadThreaded( string image );
+        
+        /**
          * Get URL of photo by its ID (helpful after upload)
          * @param {std::string} id ID of photo you'd like to load into a ofxFlickr::Media object
          */
@@ -236,6 +284,12 @@ namespace ofxFlickr {
          */
         vector<Media> search( Query query );
         
+    protected:
+        
+        vector <APICall> APIqueue;
+        void threadedFunction();
+        CallType methodToCallType( string method );
+        
     private:
         bool                bAuthenticated;
         Permissions         currentPerms;
@@ -246,7 +300,10 @@ namespace ofxFlickr {
         
         string apiSig( map<string, string> params );
         
+        string doUpload( string image );
+        
         string makeAPICall( string method, map<string,string> args, Format format = FLICKR_XML, bool bSigned = false  );
+        void makeAPICallThreaded( string method, map<string,string> args, Format format = FLICKR_XML, bool bSigned = false  );
         string buildAPICall( string method, map<string,string> args, Format format = FLICKR_XML, bool bSigned = false );
         string api_key, api_secret, frob, auth_token;
     };
