@@ -228,6 +228,10 @@ namespace ofxFlickr {
         return ret;
     }
 
+#pragma mark ofxFlickr::APIEvents
+    
+    ofEvent <APIEvent> APIEvent::events;
+    
 #pragma mark ofxFlickr::API
 
     //--------------------------------------------------------------
@@ -238,6 +242,16 @@ namespace ofxFlickr {
 
     };
 
+    //--------------------------------------------------------------
+    void API::start(){
+        startThread();
+    }
+    
+    //--------------------------------------------------------------
+    void API::stop(){
+        stopThread();
+    }
+    
     //--------------------------------------------------------------
     bool API::authenticate( string _api_key, string _api_secret, Permissions perms  ){
         api_key = _api_key;
@@ -427,7 +441,44 @@ namespace ofxFlickr {
 
         return md5( toEncode );
     }
-
+    
+    //-------------------------------------------------------------
+    CallType API::methodToCallType( string method ){
+        CallType type = FLICKR_GETMEDIA;
+        
+        if ( method == "upload" ){
+            type = FLICKR_UPLOAD;
+        } else if ( method == "flickr.photos.search" ){
+            type = FLICKR_SEARCH;
+        } else if ( method == "flickr.photos.getInfo" ){
+            type = FLICKR_GETMEDIA;
+        }
+        
+        return type;
+    }
+    
+    //-------------------------------------------------------------
+    void API::makeAPICallThreaded( string method, map<string,string> args, Format format, bool bSigned  ){
+        // add to thread queue
+        APICall call;
+        call.method = method;
+        call.args = args;
+        call.type = methodToCallType(method);
+        call.format = format;
+        call.bSigned = bSigned;
+        
+        lock();
+        APIqueue.push_back(call);
+        unlock();
+        
+        // let people know we're not running
+        static bool bNotifiedAboutThread = false;
+        if ( !bNotifiedAboutThread && !isThreadRunning()){
+            bNotifiedAboutThread = true;
+            ofLogWarning()<<"ofxFlickr: API Thread is not currently running. Make sure you start it somewhere!";
+        }
+    }
+    
     //-------------------------------------------------------------
     string API::makeAPICall( string method, map<string,string> args, Format format, bool bSigned  ){
         string path     = buildAPICall( method, args, format, bSigned );
@@ -480,7 +531,30 @@ namespace ofxFlickr {
 
     //-------------------------------------------------------------
     string API::upload( string image ){
-
+        return doUpload(image);
+    }
+    
+    //-------------------------------------------------------------
+    void  API::uploadThreaded( string image ){
+        // add to thread queue
+        APICall call;
+        call.method = image;
+        call.type = FLICKR_UPLOAD;
+        
+        lock();
+        APIqueue.push_back(call);
+        unlock();
+        
+        // let people know we're not running
+        static bool bNotifiedAboutThread = false;
+        if ( !bNotifiedAboutThread && !isThreadRunning()){
+            bNotifiedAboutThread = true;
+            ofLogWarning()<<"ofxFlickr: API Thread is not currently running. Make sure you start it somewhere!";
+        }
+    }
+    
+    //-------------------------------------------------------------
+    string API::doUpload( string image ){        
         if ( !bAuthenticated ){
             ofLogWarning( "Not authenticated! Please call authenticate() with proper api key and secret" );
             return "";
@@ -612,5 +686,100 @@ namespace ofxFlickr {
             loadedMedia[id].loadFromXML( result );
         }
         return loadedMedia[id];
+    }
+    
+    //-------------------------------------------------------------
+    void API::threadedFunction(){
+        while (isThreadRunning()){
+            // work through queue in order
+            if ( APIqueue.size() > 0 ){
+                lock();
+                APICall apiCall = APIqueue.front();
+                APIqueue.erase(APIqueue.begin());
+                unlock();
+                
+                string result   = "";
+                string path;
+                APIEvent args;
+                
+                switch (apiCall.type) {
+                    case FLICKR_GETMEDIA:
+                        path     = buildAPICall( apiCall.method, apiCall.args, apiCall.format, apiCall.bSigned );
+                        try
+                        {
+                            // Get REST style xml as string from flickr
+                            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "http://" + api_base + path ));
+                            StreamCopier::copyToString(*pStr.get(), result);
+                            
+                            // get frob
+                            loadedMedia[apiCall.args["id"]] = Media();
+                            loadedMedia[apiCall.args["id"]].loadFromXML( result );
+                            args.results.push_back(loadedMedia[apiCall.args["id"]]);
+                            
+                            ofNotifyEvent(APIEvent::events, args);
+                        }
+                        catch (Exception &ex)
+                        {
+                            cerr << ex.displayText() << endl;
+                        }
+                        break;
+                    case FLICKR_SEARCH:
+                        path     = buildAPICall( apiCall.method, apiCall.args, apiCall.format, apiCall.bSigned );
+                        
+                        try
+                        {
+                            // Get REST style xml as string from flickr
+                            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "http://" + api_base + path ));
+                            StreamCopier::copyToString(*pStr.get(), result);
+                            
+                            ofxXmlSettings xml; xml.loadFromBuffer(result);
+                            xml.pushTag("rsp");{
+                                xml.pushTag("photos"); {
+                                    
+                                    for (int i=0; i<xml.getNumTags("photo"); i++){
+                                        Media med;
+                                        
+                                        med.id = xml.getAttribute("photo", "id", "", i);
+                                        med.farm = xml.getAttribute("photo", "farm", "", i);
+                                        med.secret = xml.getAttribute("photo", "secret", "", i);
+                                        med.server = xml.getAttribute("photo", "server", "", i);
+                                        med.originalsecret = xml.getAttribute("photo", "originalsecret", "", i);
+                                        med.originalformat = xml.getAttribute("photo", "originalformat", "", i);
+                                        
+                                        string t = xml.getAttribute("photo", "media", "", i);
+                                        if ( t == "photo"){
+                                            med.type = FLICKR_PHOTO;
+                                        } else if ( t == "video"){
+                                            med.type = FLICKR_VIDEO;
+                                        } else {
+                                            med.type = FLICKR_UNKNOWN;
+                                        }
+                                        
+                                        args.results.push_back(med);
+                                    }
+                                    
+                                } xml.popTag();
+                            } xml.popTag();
+                            
+                            ofNotifyEvent(APIEvent::events, args);
+                        }
+                        catch (Exception &ex)
+                        {
+                            cerr << ex.displayText() << endl;
+                        }
+                        break;
+                    
+                    case FLICKR_UPLOAD:
+                        args.resultString = doUpload( apiCall.method );
+                        
+                        ofNotifyEvent(APIEvent::events, args);
+                        break;
+                        
+                    default:
+                        break;
+                }
+            }
+            sleep(20);
+        }
     }
 }
