@@ -32,10 +32,7 @@ void testApp::update(){
 void testApp::draw(){
     if ( latestImage.bAllocated() )
         latestImage.draw(0,0);
-
-
-
-    
+  
     // fps counter so we can see the thread!
     ofDrawBitmapString(ofToString(ofGetFrameRate(), 3), 20, 20);
 }
@@ -59,15 +56,9 @@ void testApp::mousePressed(int x, int y, int button){
 	ofImage tester;
     bool bIsImage = tester.loadImage(image);
     if ( bIsImage ){
-
-        
-        string photoID = flickrAPI.upload(ofToDataPath(image));
-        toLoad = flickrAPI.getMediaById(photoID).getURL();
-
         
         flickrAPI.uploadThreaded(ofToDataPath(image));
- 
-	ofLog() << toLoad;
+ 	ofLog() << toLoad;
     }
 #endif
 }
