@@ -55,7 +55,7 @@ void testApp::mousePressed(int x, int y, int button){
 	ofImage tester;
     bool bIsImage = tester.loadImage(image);
     if ( bIsImage ){
-        
+
         string photoID = flickrAPI.upload(ofToDataPath(image));
         toLoad = flickrAPI.getMediaById(photoID).getURL();
 	ofLog() << toLoad;
