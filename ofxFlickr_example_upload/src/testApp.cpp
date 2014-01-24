@@ -32,7 +32,7 @@ void testApp::update(){
 void testApp::draw(){
     if ( latestImage.bAllocated() )
         latestImage.draw(0,0);
-}
+
 
 
     
@@ -66,7 +66,7 @@ void testApp::mousePressed(int x, int y, int button){
 
         
         flickrAPI.uploadThreaded(ofToDataPath(image));
- upstream/master
+ 
 	ofLog() << toLoad;
     }
 #endif
