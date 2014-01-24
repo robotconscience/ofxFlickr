@@ -3,8 +3,8 @@
 // REPLACE THESE WITH YOUR API KEY AND API SECRET
 // http://www.flickr.com/services/developer/
 
-string API_KEY = "18d5cc98b35a8ba2996fb97ca97e8806";
-string API_SECRET = "5f75e1ab676fd2a3";
+string API_KEY = "";
+string API_SECRET = "";
 
 //--------------------------------------------------------------
 void testApp::setup(){
@@ -32,7 +32,7 @@ void testApp::update(){
 void testApp::draw(){
     if ( latestImage.bAllocated() )
         latestImage.draw(0,0);
-    
+  
     // fps counter so we can see the thread!
     ofDrawBitmapString(ofToString(ofGetFrameRate(), 3), 20, 20);
 }
@@ -58,7 +58,7 @@ void testApp::mousePressed(int x, int y, int button){
     if ( bIsImage ){
         
         flickrAPI.uploadThreaded(ofToDataPath(image));
-	ofLog() << toLoad;
+ 	ofLog() << toLoad;
     }
 #endif
 }
