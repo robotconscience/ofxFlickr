@@ -487,7 +487,7 @@ namespace ofxFlickr {
         try
         {
             // Get REST style xml as string from flickr
-            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "http://" + api_base + path ));
+            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "https://" + api_base + path ));
             StreamCopier::copyToString(*pStr.get(), result);
         }
         catch (Exception &ex)
@@ -575,7 +575,8 @@ namespace ofxFlickr {
         {
 
             // prepare session
-            HTTPClientSession session( api_base );
+            const URI uri( "https://" + api_base );
+            HTTPSClientSession session( uri.getHost(), uri.getPort() );
             HTTPRequest req(HTTPRequest::HTTP_POST, "/services/upload/", HTTPMessage::HTTP_1_0);
             req.setContentType("multipart/form-data");
 
@@ -611,7 +612,6 @@ namespace ofxFlickr {
         {
             cerr << "error? " + ex.displayText() <<endl;
         }
-
 
         string photoid;
 
@@ -708,7 +708,7 @@ namespace ofxFlickr {
                         try
                         {
                             // Get REST style xml as string from flickr
-                            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "http://" + api_base + path ));
+                            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "https://" + api_base + path ));
                             StreamCopier::copyToString(*pStr.get(), result);
                             
                             // get frob
@@ -729,7 +729,7 @@ namespace ofxFlickr {
                         try
                         {
                             // Get REST style xml as string from flickr
-                            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "http://" + api_base + path ));
+                            std::auto_ptr<std::istream> pStr(URIStreamOpener::defaultOpener().open( "https://" + api_base + path ));
                             StreamCopier::copyToString(*pStr.get(), result);
                             
                             ofxXmlSettings xml; xml.loadFromBuffer(result);

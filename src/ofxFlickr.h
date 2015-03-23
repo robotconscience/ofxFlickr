@@ -14,7 +14,7 @@
 
 // Poco stuff
 #include "Poco/Net/HTMLForm.h"
-#include "Poco/Net/HTTPClientSession.h"
+#include "Poco/Net/HTTPSClientSession.h"
 #include "Poco/Net/HTTPRequest.h"
 #include "Poco/Net/HTTPResponse.h"
 #include "Poco/Net/HTTPStreamFactory.h"
@@ -82,10 +82,10 @@ namespace ofxFlickr {
      */
 
     static const std::string api_base = "api.flickr.com";
-    static const std::string auth_base = "http://flickr.com/services/auth/";
+    static const std::string auth_base = "https://flickr.com/services/auth/";
     
     // %a = API key, %b = perms, %c = frob, %d = api_sig
-    static const std::string auth = "http://flickr.com/services/auth/?api_key=%a&perms=%b&frob=%c&api_sig=%d";
+    static const std::string auth = "https://flickr.com/services/auth/?api_key=%a&perms=%b&frob=%c&api_sig=%d";
     
     class Media {
     public:
